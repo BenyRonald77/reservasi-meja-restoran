@@ -1,0 +1,57 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Meja {
+  id           Int            @id @default(autoincrement())
+  nomor        String         @unique
+  kapasitas    Int
+  posX         Int            @default(0)
+  posY         Int            @default(0)
+  aktif        Boolean        @default(true)
+  adjacencyA   Adjacency[]    @relation("A")
+  adjacencyB   Adjacency[]    @relation("B")
+  reservasiMeja ReservasiMeja[]
+}
+
+model Adjacency {
+  id      Int  @id @default(autoincrement())
+  mejaAId Int
+  mejaBId Int
+  mejaA   Meja @relation("A", fields: [mejaAId], references: [id], onDelete: Cascade)
+  mejaB   Meja @relation("B", fields: [mejaBId], references: [id], onDelete: Cascade)
+
+  @@unique([mejaAId, mejaBId])
+}
+
+model Reservasi {
+  id         Int            @id @default(autoincrement())
+  tanggal    String // YYYY-MM-DD
+  jamMulai   String // HH:MM
+  jamSelesai String // HH:MM
+  namaTamu   String
+  jumlahTamu Int
+  kontak     String         @default("")
+  status     String         @default("dipesan") // dipesan | diduduki | selesai | dibatalkan
+  createdAt  String         @default("")
+  checkedInAt String        @default("")
+  meja       ReservasiMeja[]
+
+  @@index([tanggal, status])
+}
+
+model ReservasiMeja {
+  id          Int       @id @default(autoincrement())
+  reservasiId Int
+  mejaId      Int
+  reservasi   Reservasi @relation(fields: [reservasiId], references: [id], onDelete: Cascade)
+  meja        Meja      @relation(fields: [mejaId], references: [id], onDelete: Cascade)
+
+  @@unique([reservasiId, mejaId])
+  @@index([mejaId])
+}
