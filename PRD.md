@@ -26,9 +26,14 @@ Next.js 14 + TypeScript + Prisma 5.22 + SQLite + Tailwind CSS, App Router.
 2. **Cegah bentrok** (`POST /api/reservasi`): overlap = `jamMulai < selesai_lama &&
    jamSelesai > mulai_lama` pada tanggal sama & status `dipesan`/`diduduki`,
    diperiksa **per meja** (termasuk meja yang sedang tergabung di reservasi lain).
-   Bentrok → `409`. Klaim meja dilakukan dalam **transaksi Prisma atomik**:
-   tulis reservasi dulu (kunci tulis SQLite + `busy_timeout`), lalu cek bentrok,
-   lalu tulis ReservasiMeja — request bersamaan tidak bisa double-booking.
+   Bentrok → `409`. Klaim meja memakai pola **conditional single-statement**
+   (analog `updateMany({ where: {...} })` + cek row count): INSERT parent
+   Reservasi, lalu `INSERT INTO ReservasiMeja ... SELECT ... WHERE NOT EXISTS
+   (bentrok overlap)` — satu statement berjalan atomik di SQLite (implicit
+   transaction + write lock), sehingga request bersamaan diserialisasi:
+   pemenang menulis N baris, yang kalah mendapat 0 baris → parent yatim
+   dihapus → 409. Tidak memakai interactive `prisma.$transaction` untuk
+   konkurensi (terbukti tidak tahan race di SQLite: 500/lock-timeout).
 3. **Check-in** (`POST /api/reservasi/[id]/checkin`): `dipesan` → `diduduki`
    (404 bila tidak ada, 409 bila status bukan `dipesan`).
 4. **Auto-release sweep** (`POST /api/sweep`): reservasi `dipesan` dengan
