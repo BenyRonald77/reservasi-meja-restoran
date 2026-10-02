@@ -25,9 +25,27 @@ export type ReservasiInput = {
  * interaktif dengan busy_timeout, sehingga dua request bersamaan tidak bisa
  * double-booking meja yang sama (yang kalah mendapat 409).
  */
+// Antrean mutex proses-tunggal: klaim meja yang datang bersamaan dijalankan
+// berurutan, sehingga tiap klaim melihat state yang sudah di-commit oleh
+// klaim sebelumnya. Di dalam mutex, transaksi Prisma menjamin atomisitas
+// cek-bentrok + insert (yang kalah mendapat 409, bukan 500/lock-timeout).
+let antrean: Promise<unknown> = Promise.resolve();
+function denganMutex<T>(fn: () => Promise<T>): Promise<T> {
+  const hasil = antrean.then(fn, fn);
+  antrean = hasil.then(
+    () => undefined,
+    () => undefined
+  );
+  return hasil;
+}
+
 export async function buatReservasi(input: ReservasiInput) {
+  return denganMutex(() => klaimReservasi(input));
+}
+
+async function klaimReservasi(input: ReservasiInput) {
   return prisma.$transaction(async (tx) => {
-    await tx.$executeRawUnsafe("PRAGMA busy_timeout = 10000");
+    await tx.$queryRawUnsafe("PRAGMA busy_timeout = 10000");
 
     let mejaIds = input.mejaIds;
     if (!mejaIds || mejaIds.length === 0) {

@@ -1,10 +1,23 @@
+// Zona waktu operasional restoran (WIB). Server VM berjalan di UTC,
+// jadi tanggal/jam "hari ini" dihitung dalam Asia/Jakarta agar sweep
+// dan filter tanggal sesuai jam operasional pengguna.
+const TZ = "Asia/Jakarta";
+const parts = (d: Date) => {
+  const p = new Intl.DateTimeFormat("en-CA", {
+    timeZone: TZ, year: "numeric", month: "2-digit", day: "2-digit",
+    hour: "2-digit", minute: "2-digit", hour12: false,
+  }).formatToParts(d);
+  const g = (t: string) => p.find((x) => x.type === t)!.value;
+  return { y: g("year"), m: g("month"), d: g("day"), h: g("hour"), min: g("minute") };
+};
 export const today = () => {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  const p = parts(new Date());
+  return `${p.y}-${p.m}-${p.d}`;
 };
 export const nowTime = () => {
-  const d = new Date();
-  return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+  const p = parts(new Date());
+  const h = p.h === "24" ? "00" : p.h;
+  return `${h}:${p.min}`;
 };
 /** Kurangi menit dari "HH:MM", hasil "HH:MM" (boleh negatif jam -> clamp 00:00). */
 export const minusMinutes = (hhmm: string, mins: number) => {

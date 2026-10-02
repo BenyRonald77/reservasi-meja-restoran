@@ -35,9 +35,12 @@ async function main() {
     await prisma.adjacency.create({ data: { mejaAId: x, mejaBId: y } });
   }
 
-  // Reservasi contoh hari ini
-  const tgl = new Date();
-  const tanggal = `${tgl.getFullYear()}-${String(tgl.getMonth() + 1).padStart(2, "0")}-${String(tgl.getDate()).padStart(2, "0")}`;
+  // Reservasi contoh hari ini (zona WIB, konsisten dengan lib/format.ts)
+  const wib = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Jakarta", year: "numeric", month: "2-digit", day: "2-digit",
+  }).format(new Date());
+  const [y, m, dd] = wib.split("-");
+  const tanggal = `${y}-${m}-${dd}`;
   const r1 = await prisma.reservasi.create({
     data: {
       tanggal, jamMulai: "19:00", jamSelesai: "21:00",
